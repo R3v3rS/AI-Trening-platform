@@ -1,7 +1,24 @@
 from datetime import datetime, date
-from sqlalchemy import Date, DateTime, Float, Integer
+from sqlalchemy import Date, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from core.database import Base
+
+
+class AthleteProfile(Base):
+    __tablename__ = "athlete_profiles"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ftp_watts: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    weight_kg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    hr_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    hr_threshold: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    experience_level: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    weekly_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    goals: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
+    preferred_training_days: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string
+    max_ride_time_per_day_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    indoor_vs_outdoor_preference: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Workout(Base):
