@@ -1,0 +1,25 @@
+from flask import Flask, jsonify
+from flask_cors import CORS
+from api.v1 import register_blueprints
+from core.database import init_db
+
+def create_app():
+    app = Flask(__name__)
+    CORS(app, origins=["http://localhost:5173"])
+
+    init_db()
+    register_blueprints(app)
+
+    @app.errorhandler(404)
+    def not_found(e):
+        return jsonify({"error": "not_found"}), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return jsonify({"error": "internal_server_error"}), 500
+
+    return app
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run(host="0.0.0.0", port=5000, debug=False)
