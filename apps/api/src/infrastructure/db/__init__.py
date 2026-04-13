@@ -1,3 +1,3 @@
-from .models import DailyLoadMetric, Workout, AthleteProfile
+from .models import DailyLoadMetric, Workout, AthleteProfile, PlannedWorkout
 
-__all__ = ["Workout", "DailyLoadMetric", "AthleteProfile"]
+__all__ = ["Workout", "DailyLoadMetric", "AthleteProfile", "PlannedWorkout"]
