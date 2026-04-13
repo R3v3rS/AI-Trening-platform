@@ -1,10 +1,13 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
-from api.v1 import register_blueprints
+from core.config import Config
 from core.database import init_db
+from api.v1 import register_blueprints
+
 
 def create_app():
     app = Flask(__name__)
+    app.config.from_object(Config)
     CORS(app, origins=["http://localhost:5173"])
 
     init_db()
@@ -20,6 +23,7 @@ def create_app():
 
     return app
 
+
 if __name__ == "__main__":
     app = create_app()
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=Config.DEBUG)
