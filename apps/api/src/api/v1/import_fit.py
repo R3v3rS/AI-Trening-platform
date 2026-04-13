@@ -3,8 +3,10 @@ import tempfile
 
 from flask import Blueprint, jsonify, request
 
+from core.database import SessionLocal
 from domain.metrics import MetricsError, calculate_metrics
 from infrastructure.fit import FitParseError, GarminFitParser
+from infrastructure.db.models import Workout
 
 import_fit_bp = Blueprint("import_fit", __name__, url_prefix="/api/v1")
 
@@ -40,6 +42,28 @@ def import_fit():
             duration_sec = max(valid_offsets) if valid_offsets else None
 
         metrics = calculate_metrics(power_samples, duration_sec, ftp)
+        db = SessionLocal()
+        workout = None
+        try:
+            if header.get("started_at"):
+                workout = Workout(
+                    started_at=header.get("started_at"),
+                    tss=metrics.get("tss"),
+                )
+                db.add(workout)
+                db.commit()
+                db.refresh(workout)
+
+            # Przelicz metryki długoterminowe po imporcie
+            try:
+                from domain.metrics.load_calculator import recalculate_load_metrics
+                if workout is not None:
+                    recalculate_load_metrics(workout.started_at.date(), db)
+            except Exception as e:
+                # Nie blokuj importu jeśli przeliczenie metryk zawiedzie
+                print(f"[WARN] Błąd przeliczania CTL/ATL/TSB: {e}")
+        finally:
+            db.close()
 
         return jsonify(
             {
