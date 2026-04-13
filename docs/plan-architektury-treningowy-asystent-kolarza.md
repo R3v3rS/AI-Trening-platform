@@ -1,6 +1,10 @@
 # Plan architektury aplikacji: Treningowy Asystent Kolarza
 
+> Uzupełnienie techniczne i playbook dla AI Agenta znajduje się w pliku `docs/specyfikacja-techniczna-i-playbook-agenta-ai.md`.
+
 ## 1. Cel dokumentu
+
+**Założenie MVP: aplikacja jednoosobowa (single-athlete), bez rejestracji i logowania użytkowników.**
 
 Ten dokument opisuje docelową architekturę aplikacji „Treningowy Asystent Kolarza”, zakres MVP oraz plan dalszej rozbudowy. Celem jest przygotowanie spójnej bazy projektowej dla backendu, frontendu, bazy danych i przyszłej warstwy AI.
 
@@ -56,6 +60,26 @@ Dostarczenie parametrów bazowych do wyliczeń i planowania.
 - Walidacja zakresów wartości
 - Wersjonowanie (opcjonalnie, etap późniejszy)
 
+### 3.1b Moduł: Test FTP (MVP)
+
+### Cel
+Wyznaczenie i aktualizacja FTP na bazie ustandaryzowanego testu.
+
+### Obsługiwane protokoły
+- Ramp test (preferowany)
+- Protokół 20-minutowy
+
+### Dane wejściowe
+- Seria próbek mocy z importu FIT (`workout_samples`)
+- Ręcznie podany wynik testu
+
+### Dane wyjściowe
+- Sugerowane FTP
+- Aktualizacja profilu sportowca (`ftp_watts`)
+
+### Status
+- Faza 1 MVP
+
 ---
 
 ## 3.2 Moduł: Import treningów `.FIT`
@@ -90,7 +114,7 @@ Wczytanie realnych danych treningowych i zapis strukturalny w bazie.
 2. Parsowanie rekordów
 3. Wyliczenie metryk (`NP`, `IF`, `TSS`)
 4. Zapis nagłówka treningu do `workouts`
-5. Opcjonalny zapis próbek do `workout_samples`
+5. Wymagany zapis próbek do `workout_samples` (pod Power Curve i test FTP)
 
 ---
 
@@ -239,25 +263,25 @@ Najlepszy efekt daje podział odpowiedzialności:
 
 ## 4.3 Baza danych (SQLite/PostgreSQL)
 
+> Dla single-athlete deployment na home server dopuszczalne i rekomendowane jest SQLite także produkcyjnie. PostgreSQL zalecany tylko przy przejściu na multi-user.
+
 ### Tabele główne
 
-- `users`
 - `athlete_profile`
 - `workouts`
 - `planned_workouts`
-- `workout_samples` (opcjonalnie)
+- `workout_samples` (wymagane od Fazy 1)
 - `daily_load_metrics` (agregaty obciążenia dziennego)
 - `workout_insights` (komentarze rule-based i AI)
 
 ### Wstępny schemat logiczny (uproszczony)
 
-- `users (id, email, password_hash, created_at)`
-- `athlete_profile (id, user_id, ftp_watts, weight_kg, hr_max, hr_threshold, experience_level, weekly_hours, goals, limitations, preferred_training_days, max_ride_time_per_day_min, indoor_vs_outdoor_preference, updated_at)`
-- `workouts (id, user_id, source, started_at, duration_sec, distance_m, avg_power, np_power, if_value, tss, avg_hr, max_hr, avg_cadence, created_at)`
-- `planned_workouts (id, user_id, planned_date, type, duration_sec, target_zone, status, moved_from_date, notes, created_at, updated_at)`
+- `athlete_profile (id, ftp_watts, weight_kg, hr_max, hr_threshold, experience_level, weekly_hours, goals, limitations, preferred_training_days, max_ride_time_per_day_min, indoor_vs_outdoor_preference, updated_at)`
+- `workouts (id, source, started_at, duration_sec, distance_m, avg_power, np_power, if_value, tss, avg_hr, max_hr, avg_cadence, created_at)`
+- `planned_workouts (id, planned_date, type, duration_sec, target_zone, status, moved_from_date, notes, created_at, updated_at)`
 - `workout_samples (id, workout_id, ts_offset_sec, power, hr, cadence, speed)`
-- `daily_load_metrics (id, user_id, metric_date, tss_day, atl_7d, ctl_42d, tsb, created_at)`
-- `workout_insights (id, user_id, workout_id, insight_type, severity, message, generated_by, created_at)`
+- `daily_load_metrics (id, metric_date, tss_day, atl_7d, ctl_42d, tsb, created_at)`
+- `workout_insights (id, workout_id, insight_type, severity, message, generated_by, created_at)`
 
 ---
 
@@ -285,7 +309,7 @@ Najlepszy efekt daje podział odpowiedzialności:
 1. **Onboarding** – użytkownik uzupełnia profil.
 2. **Import FIT** – plik trafia do backendu.
 3. **Przetwarzanie** – parser wyciąga dane i liczy metryki.
-4. **Persistencja** – zapis do `workouts` (+ opcjonalnie próbki).
+4. **Persistencja** – zapis do `workouts` + wymagany zapis próbek do `workout_samples`.
 5. **Prezentacja** – frontend pokazuje dane na liście i w kalendarzu.
 6. **Planowanie ręczne** – użytkownik dodaje jednostki do planu.
 7. **Status realizacji** – trening otrzymuje status (`completed`, `skipped`, `moved`).
@@ -372,10 +396,11 @@ Najlepszy efekt daje podział odpowiedzialności:
 ## Faza 1 (MVP)
 
 1. Profil kolarza
-2. Import `.FIT`
-3. Metryki: NP, IF, TSS, strefy
-4. Kalendarz podstawowy
-5. Manualne planowanie
+2. Moduł FTP test (ramp test + 20-min)
+3. Import `.FIT` z wymaganym zapisem `workout_samples`
+4. Metryki: NP, IF, TSS, strefy
+5. Kalendarz podstawowy
+6. Manualne planowanie
 
 ## Faza 2
 
@@ -468,10 +493,15 @@ Na start wdrażamy hybrydę:
 - **Jakość danych FIT** → fallback parser + walidacje.
 - **Różnice źródeł (Garmin/Zwift/Wahoo)** → warstwa normalizacji danych.
 - **Niewłaściwe rekomendacje AI** → ograniczenia regułowe i review użytkownika.
-- **Skalowanie analizy próbek** → zapis próbek opcjonalny lub agregacje.
+- **Skalowanie analizy próbek** → zapis pełnych próbek wymagany (Power Curve / FTP test); mitigacja przez partycjonowanie, kompresję i retencję.
 
 ---
 
 ## 16. Podsumowanie
 
 Dokument definiuje kompletny plan architektury dla pierwszej wersji aplikacji oraz kierunek dalszego rozwoju. Priorytetem jest dostarczenie solidnego MVP opartego o profil sportowca, import FIT, analizę metryk i kalendarz planowania. Warstwa AI jest projektowana jako naturalne rozszerzenie, które można wdrożyć po ustabilizowaniu fundamentów danych i logiki domenowej.
+
+---
+
+## Changelog
+- [2026-04-13] – korekty po review: ujednolicenie stacku (Flask), samples jako wymagane, kontekst SQLite, dodanie modułu FTP test.
