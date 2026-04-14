@@ -104,6 +104,54 @@ def create_planned_workout():
     finally:
         db.close()
 
+@calendar_bp.route("/planned-workouts/<int:workout_id>/export/zwo", methods=["GET"])
+def export_zwo(workout_id: int):
+    """
+    Generuje prosty plik ZWO z zaplanowanego treningu, aby można było go np. użyć do konwersji do FIT 
+    lub zaimportować w Zwift. 
+    W prawdziwym użyciu potrzebne by były konkretne bloki mocy (Interwały). W tym MVP
+    tworzymy jeden płaski blok dla zadanego typu treningu.
+    """
+    db = SessionLocal()
+    try:
+        repo = PlannedWorkoutRepository(db)
+        pw = repo.get_by_id(workout_id)
+        if not pw:
+            return jsonify({"error": "not_found"}), 404
+            
+        duration_sec = pw.duration_sec or 3600
+        
+        # Proste przypisanie % FTP do zdefiniowanych typów treningu
+        power_zones = {
+            "recovery": 0.50,
+            "z2": 0.65,
+            "tempo": 0.80,
+            "long_ride": 0.65,
+            "vo2max": 1.10,
+            "ftp_test": 1.00
+        }
+        
+        power_fraction = power_zones.get(pw.type, 0.70)
+        
+        # Generowanie formatu XML/ZWO
+        zwo_content = f"""<?xml version="1.0" encoding="UTF-8" ?>
+<workout_file>
+  <author>Treningowy Asystent Kolarza</author>
+  <name>{pw.type.upper()} na dzień {pw.planned_date}</name>
+  <description>{pw.notes or "Wygenerowano automatycznie"}</description>
+  <sportType>bike</sportType>
+  <workout>
+    <SteadyState Duration="{duration_sec}" Power="{power_fraction}"/>
+  </workout>
+</workout_file>
+"""
+        from flask import Response
+        response = Response(zwo_content, mimetype="application/xml")
+        response.headers["Content-Disposition"] = f"attachment; filename=workout_{pw.planned_date}.zwo"
+        return response
+    finally:
+        db.close()
+
 
 @calendar_bp.route(
     "/planned-workouts/<int:workout_id>/status",
