@@ -47,12 +47,35 @@ def import_fit():
         try:
             if header.get("started_at"):
                 workout = Workout(
+                    source="garmin",
+                    garmin_session_id=header.get("session_id", f"session_{header.get('started_at').timestamp()}"),
                     started_at=header.get("started_at"),
+                    duration_sec=duration_sec,
+                    distance_m=header.get("distance_m"),
+                    avg_power=header.get("avg_power"),
+                    np_power=metrics.get("np"),
+                    if_value=metrics.get("if_value"),
                     tss=metrics.get("tss"),
+                    avg_hr=header.get("avg_hr"),
+                    max_hr=header.get("max_hr"),
+                    avg_cadence=header.get("avg_cadence"),
                 )
                 db.add(workout)
                 db.commit()
                 db.refresh(workout)
+
+                # Save samples
+                from infrastructure.db.models import WorkoutSample
+                for sample in samples:
+                    db.add(WorkoutSample(
+                        workout_id=workout.id,
+                        ts_offset_sec=sample.get("sec_from_start", 0),
+                        power=sample.get("power"),
+                        hr=sample.get("heart_rate"),
+                        cadence=sample.get("cadence"),
+                        speed=sample.get("speed")
+                    ))
+                db.commit()
 
             # Przelicz metryki długoterminowe po imporcie
             try:

@@ -1,151 +1,68 @@
-import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getWorkouts } from '../lib/api/workouts';
-import { WorkoutType, WorkoutStatus, GetWorkoutsParams } from '../types';
-import { formatDate } from '../utils/dateFormatter';
-import styles from './WorkoutsPage.module.css';
+import { api } from '../lib/api';
+import { format, subMonths, addMonths } from 'date-fns';
 
-const WorkoutsPage: React.FC = () => {
-  const [page, setPage] = useState(1);
-  const [typeFilter, setTypeFilter] = useState<WorkoutType | ''>('');
-  const [statusFilter, setStatusFilter] = useState<WorkoutStatus | ''>('');
-  
-  const limit = 10;
+export default function WorkoutsPage() {
+  const currentDate = new Date();
+  const fromDate = format(subMonths(currentDate, 3), 'yyyy-MM-dd');
+  const toDate = format(addMonths(currentDate, 1), 'yyyy-MM-dd');
 
-  const queryParams: GetWorkoutsParams = {
-    page,
-    limit,
-    ...(typeFilter && { type: typeFilter }),
-    ...(statusFilter && { status: statusFilter }),
-  };
-
-  const {
-    data: paginatedData,
-    isLoading,
-    error,
-    isPlaceholderData,
-  } = useQuery({
-    queryKey: ['workouts', queryParams],
-    queryFn: () => getWorkouts(queryParams),
-    placeholderData: (previousData) => previousData,
+  const { data: workouts, isLoading } = useQuery({
+    queryKey: ['workouts', fromDate, toDate],
+    queryFn: async () => {
+      const res = await api.get(`/workouts?from=${fromDate}&to=${toDate}`);
+      return res.data;
+    }
   });
 
-  const getStatusClass = (status: WorkoutStatus) => {
-    switch (status) {
-      case WorkoutStatus.COMPLETED:
-        return styles.statusCompleted;
-      case WorkoutStatus.PLANNED:
-        return styles.statusPlanned;
-      case WorkoutStatus.MISSED:
-        return styles.statusMissed;
-      default:
-        return '';
-    }
-  };
-
-  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setTypeFilter(e.target.value as WorkoutType | '');
-    setPage(1); // Reset na pierwszą stronę po zmianie filtru
-  };
-
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setStatusFilter(e.target.value as WorkoutStatus | '');
-    setPage(1);
-  };
-
-  const totalPages = paginatedData ? Math.ceil(paginatedData.total / limit) : 0;
-
   return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Workouts</h1>
-      </div>
-
-      <div className={styles.filters}>
-        <div className={styles.filterGroup}>
-          <label className={styles.filterLabel} htmlFor="type-filter">Typ:</label>
-          <select 
-            id="type-filter" 
-            className={styles.select}
-            value={typeFilter}
-            onChange={handleTypeChange}
-          >
-            <option value="">Wszystkie</option>
-            {Object.values(WorkoutType).map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className={styles.filterGroup}>
-          <label className={styles.filterLabel} htmlFor="status-filter">Status:</label>
-          <select 
-            id="status-filter" 
-            className={styles.select}
-            value={statusFilter}
-            onChange={handleStatusChange}
-          >
-            <option value="">Wszystkie</option>
-            {Object.values(WorkoutStatus).map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {error ? (
-        <div className={styles.error}>Błąd pobierania treningów: {error.message}</div>
-      ) : isLoading ? (
-        <div className={styles.loading}>Ładowanie treningów...</div>
-      ) : paginatedData?.data.length === 0 ? (
-        <div className={styles.emptyState}>
-          Nie znaleziono żadnych treningów spełniających kryteria.
+    <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
+      <h2 className="font-heading text-2xl font-bold mb-6">Historia Treningów</h2>
+      
+      {isLoading ? (
+        <div className="flex items-center justify-center p-12 text-muted-foreground animate-pulse">
+          Ładowanie historii...
         </div>
       ) : (
-        <>
-          <div className={styles.list}>
-            {paginatedData?.data.map((workout) => (
-              <div key={workout.id} className={styles.workoutItem}>
-                <div className={styles.workoutDetails}>
-                  <span className={styles.workoutDate}>{formatDate(workout.date)}</span>
-                  <span className={styles.workoutTitle}>{workout.title || workout.type}</span>
-                  <div className={styles.workoutMeta}>
-                    <span>{workout.duration} min</span>
-                    <span>{workout.type}</span>
-                  </div>
-                </div>
-                <div className={`${styles.workoutStatus} ${getStatusClass(workout.status)}`}>
-                  {workout.status}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className={styles.pagination}>
-              <button 
-                className={styles.pageButton}
-                onClick={() => setPage(old => Math.max(old - 1, 1))}
-                disabled={page === 1 || isPlaceholderData}
-              >
-                Poprzednia
-              </button>
-              <span className={styles.pageInfo}>
-                Strona {page} z {totalPages}
-              </span>
-              <button 
-                className={styles.pageButton}
-                onClick={() => setPage(old => Math.min(old + 1, totalPages))}
-                disabled={page === totalPages || isPlaceholderData}
-              >
-                Następna
-              </button>
-            </div>
-          )}
-        </>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs uppercase bg-muted text-muted-foreground">
+              <tr>
+                <th className="px-6 py-3">Data</th>
+                <th className="px-6 py-3">Źródło</th>
+                <th className="px-6 py-3">Czas (min)</th>
+                <th className="px-6 py-3">TSS</th>
+                <th className="px-6 py-3">NP (W)</th>
+                <th className="px-6 py-3">Śr. Moc (W)</th>
+                <th className="px-6 py-3">IF</th>
+              </tr>
+            </thead>
+            <tbody>
+              {workouts?.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
+                    Brak wykonanych treningów w wybranym okresie.
+                  </td>
+                </tr>
+              ) : (
+                workouts?.map((w: any) => (
+                  <tr key={w.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                    <td className="px-6 py-4 font-medium whitespace-nowrap">
+                      {format(new Date(w.started_at), 'yyyy-MM-dd HH:mm')}
+                    </td>
+                    <td className="px-6 py-4 capitalize">{w.source}</td>
+                    <td className="px-6 py-4">{Math.round(w.duration_sec / 60)}</td>
+                    <td className="px-6 py-4 font-bold text-z5">{Math.round(w.tss || 0)}</td>
+                    <td className="px-6 py-4 text-z2 font-semibold">{Math.round(w.np_power || 0)}</td>
+                    <td className="px-6 py-4">{Math.round(w.avg_power || 0)}</td>
+                    <td className="px-6 py-4">{(w.if_value || 0).toFixed(2)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
-};
-
-export default WorkoutsPage;
+}
