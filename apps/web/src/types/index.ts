@@ -56,3 +56,17 @@ export interface PlannedWorkoutData {
   type: WorkoutType;
   title?: string;
 }
+
+export interface GetWorkoutsParams {
+  page?: number;
+  limit?: number;
+  type?: WorkoutType | '';
+  status?: WorkoutStatus | '';
+}
+
+export interface PaginatedWorkouts {
+  data: CalendarData[];
+  total: number;
+  page: number;
+  limit: number;
+}
