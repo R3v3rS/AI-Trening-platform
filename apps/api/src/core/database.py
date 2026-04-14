@@ -1,13 +1,17 @@
+from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from core.config import Config
-import os
 
-engine = create_engine(
-    Config.DATABASE_URL,
-    connect_args={"check_same_thread": False}
-)
 
+def _build_engine():
+    kwargs = {}
+    if Config.DATABASE_URL.startswith("sqlite"):
+        kwargs["connect_args"] = {"check_same_thread": False}
+    return create_engine(Config.DATABASE_URL, **kwargs)
+
+
+engine = _build_engine()
 SessionLocal = sessionmaker(bind=engine)
 
 
@@ -25,10 +29,12 @@ def get_db():
 
 def init_db():
     from infrastructure.db import models  # noqa: F401
-    db_path = Config.DATABASE_URL.replace("sqlite:////", "/")
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    if Config.DATABASE_URL.startswith("sqlite"):
+        db_path = Config.DATABASE_URL.replace("sqlite:///", "")
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
-    print(f"[DB] SQLite initialized: {Config.DATABASE_URL}")
+    # Nie logujemy pełnego URL – może zawierać hasła
+    print("[DB] Baza danych zainicjowana.")
 
 
 def check_db_connection() -> bool:

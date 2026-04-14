@@ -10,7 +10,7 @@ from core.database import Base
 class AthleteProfile(Base):
     __tablename__ = "athlete_profiles"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     ftp_watts: Mapped[int] = mapped_column(
         Integer, nullable=False,
         info={"check": "ftp_watts > 0"}
@@ -48,8 +48,8 @@ class AthleteProfile(Base):
 class Workout(Base):
     __tablename__ = "workouts"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    source: Mapped[str] = mapped_column(String(20), default="garmin")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(50), default="garmin")
     garmin_session_id: Mapped[str] = mapped_column(String(64), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     duration_sec: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -78,7 +78,7 @@ class Workout(Base):
 class WorkoutSample(Base):
     __tablename__ = "workout_samples"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     workout_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("workouts.id", ondelete="CASCADE"), nullable=False
     )
@@ -94,12 +94,12 @@ class WorkoutSample(Base):
 class PlannedWorkout(Base):
     __tablename__ = "planned_workouts"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    planned_date: Mapped[date] = mapped_column(Date, nullable=False)
-    type: Mapped[str] = mapped_column(String(20), nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    planned_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    type: Mapped[str] = mapped_column(String(50), nullable=True)
     duration_sec: Mapped[int] = mapped_column(Integer, nullable=True)
-    target_zone: Mapped[str] = mapped_column(String(20), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="planned")
+    target_zone: Mapped[str] = mapped_column(String(50), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="planned")
     moved_from_date: Mapped[date] = mapped_column(Date, nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -124,12 +124,12 @@ class PlannedWorkout(Base):
 class DailyLoadMetric(Base):
     __tablename__ = "daily_load_metrics"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    metric_date: Mapped[date] = mapped_column(Date, nullable=False, unique=True)
-    tss_day: Mapped[float] = mapped_column(Float, nullable=True)
-    atl_7d: Mapped[float] = mapped_column(Float, nullable=True)
-    ctl_42d: Mapped[float] = mapped_column(Float, nullable=True)
-    tsb: Mapped[float] = mapped_column(Float, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    metric_date: Mapped[date] = mapped_column(Date, unique=True, nullable=False, index=True)
+    tss_day: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    atl_7d: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    ctl_42d: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    tsb: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

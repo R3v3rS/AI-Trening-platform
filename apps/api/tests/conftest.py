@@ -1,16 +1,26 @@
+import os
 import pytest
-from main import create_app
-from core.database import Base, engine
 
-@pytest.fixture
+# WAŻNE: ustaw env PRZED importem modułów aplikacji
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["FLASK_ENV"] = "development"
+os.environ["SECRET_KEY"] = "test-secret-key"
+
+from main import create_app          # noqa: E402
+from core.database import Base, engine  # noqa: E402
+
+
+@pytest.fixture(scope="session")
 def app():
     app = create_app()
     app.config["TESTING"] = True
-    yield app
+    return app
+
 
 @pytest.fixture
 def client(app):
     return app.test_client()
+
 
 @pytest.fixture(autouse=True)
 def clean_db():
