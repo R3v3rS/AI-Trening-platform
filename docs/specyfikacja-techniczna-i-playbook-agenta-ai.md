@@ -45,7 +45,7 @@ Wnioski: kierunek jest właściwy, ale do efektywnego developmentu potrzebny jes
 ### 3.1 Backend
 
 - **Python 3.12**
-- **FastAPI** (preferowane do nowych endpointów; Flask może pozostać tylko jako warstwa przejściowa)
+- **Flask** (jedyny i docelowy framework backendowy)
 - **Pydantic v2** do walidacji kontraktów
 - **SQLAlchemy 2.x** + **Alembic** do migracji
 - **Celery/RQ** (opcjonalnie od fazy 2) do zadań asynchronicznych (np. cięższe przetwarzanie FIT)
@@ -72,8 +72,8 @@ Dlaczego:
 
 ### 3.3 Baza danych
 
-- **MVP:** PostgreSQL 16 (lokalnie może być SQLite tylko w trybie developerskim)
-- **Produkcyjnie:** PostgreSQL jako jedyny wspierany silnik
+- **MVP:** PostgreSQL 16 lub SQLite (w zależności od środowiska wdrożenia)
+- **Produkcyjnie:** dla single-athlete deployment na home server dopuszczalne i rekomendowane jest SQLite; PostgreSQL zalecany przy przejściu na multi-user
 - **Redis** (opcjonalnie) do kolejek/cache
 
 Dlaczego:
@@ -178,7 +178,7 @@ Poniżej minimalna struktura repozytorium dla startu prac:
 - `planned_workouts`
 - `daily_load_metrics`
 
-`workout_samples` i `workout_insights` mogą wejść w kolejnym kroku.
+`workout_samples` są wymagane od Fazy 1 (pod Power Curve), natomiast `workout_insights` mogą wejść w kolejnym kroku.
 
 ---
 
@@ -230,7 +230,7 @@ Funkcja jest ukończona, gdy:
 
 ### Faza 1 (MVP)
 
-- Profil + import FIT + podstawowe metryki + kalendarz + statusy.
+- Profil + import FIT + podstawowe metryki + kalendarz + statusy + moduł FTP test (ramp test + 20-min) + wymagane `workout_samples`.
 
 ### Faza 2 (stabilizacja i jakość)
 
@@ -269,7 +269,7 @@ Minimalny szablon ADR:
 1. Inicjalizacja backendu i frontendu.
 2. Konfiguracja `docker-compose` (api, web, db).
 3. Pierwsza migracja DB.
-4. Endpoint `health` i podstawowa autoryzacja.
+4. Endpoint `health` i podstawowe logowanie aplikacyjne.
 5. Pierwszy import FIT + zapis treningu.
 6. Widok listy treningów i kalendarza.
 7. Pipeline CI: lint + test + build.
@@ -287,3 +287,8 @@ Najważniejsze zasady to:
 - obowiązkowa dokumentacja i testy przy każdej iteracji.
 
 Dzięki temu kolejne funkcje będą dodawane bez łamania wcześniejszych założeń i bez utraty jakości architektury.
+
+---
+
+## Changelog
+- [2026-04-13] – korekty po review: ujednolicenie stacku (Flask), samples jako wymagane, kontekst SQLite, dodanie modułu FTP test.
