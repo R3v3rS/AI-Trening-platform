@@ -15,6 +15,7 @@ class PlannedWorkoutRepository:
             duration_sec=data.get("duration_sec"),
             target_zone=data.get("target_zone"),
             notes=data.get("notes"),
+            structured_steps=data.get("structured_steps"),
             status="planned",
         )
         self.db.add(pw)
@@ -74,6 +75,7 @@ def planned_workout_to_dict(pw: PlannedWorkout) -> dict:
             if pw.moved_from_date else None
         ),
         "notes": pw.notes,
+        "structured_steps": pw.structured_steps,
         "created_at": (
             pw.created_at.isoformat() if pw.created_at else None
         ),
