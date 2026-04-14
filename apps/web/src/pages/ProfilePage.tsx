@@ -1,179 +1,167 @@
-import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProfile, updateProfile } from '../lib/api/profile';
-import { Profile, ProfileSchema } from '../types';
-import styles from './ProfilePage.module.css';
+import { api } from '../lib/api';
+import { useState, useEffect } from 'react';
 
-const ProfilePage: React.FC = () => {
+export default function ProfilePage() {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState<Record<string, string | number>>({
-    ftp: '',
-    weight: '',
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['profile'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/profile');
+        return res.data;
+      } catch (err: any) {
+        if (err.response?.status === 404) return null;
+        throw err;
+      }
+    }
+  });
+
+  const [formData, setFormData] = useState({
+    ftp_watts: '',
+    weight_kg: '',
     hr_max: '',
     hr_threshold: '',
-    experience_level: '',
-    weekly_hours: '',
-  });
-  const [validationError, setValidationError] = useState<string | null>(null);
-
-  const { data: profile, isLoading, error: fetchError } = useQuery({
-    queryKey: ['profile'],
-    queryFn: getProfile,
+    experience_level: 'intermediate',
+    indoor_vs_outdoor_preference: 'mixed'
   });
 
   useEffect(() => {
     if (profile) {
-      setFormData(profile);
+      setFormData({
+        ftp_watts: profile.ftp_watts || '',
+        weight_kg: profile.weight_kg || '',
+        hr_max: profile.hr_max || '',
+        hr_threshold: profile.hr_threshold || '',
+        experience_level: profile.experience_level || 'intermediate',
+        indoor_vs_outdoor_preference: profile.indoor_vs_outdoor_preference || 'mixed'
+      });
     }
   }, [profile]);
 
   const mutation = useMutation({
-    mutationFn: (data: Partial<Profile>) => updateProfile(data),
+    mutationFn: (newProfile: any) => api.put('/profile', newProfile),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      setValidationError(null);
+      alert('Zapisano profil!');
     },
+    onError: () => {
+      alert('Błąd podczas zapisywania profilu.');
+    }
   });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value,
-    }));
-    setValidationError(null);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const result = ProfileSchema.safeParse(formData);
-    
-    if (!result.success) {
-      setValidationError(result.error.errors[0].message);
-      return;
-    }
+    mutation.mutate({
+      ftp_watts: Number(formData.ftp_watts),
+      weight_kg: Number(formData.weight_kg),
+      hr_max: Number(formData.hr_max),
+      hr_threshold: Number(formData.hr_threshold),
+      experience_level: formData.experience_level,
+      indoor_vs_outdoor_preference: formData.indoor_vs_outdoor_preference
+    });
+  };
 
-    mutation.mutate(result.data);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   if (isLoading) {
-    return <div className={styles.loading}>Ładowanie profilu...</div>;
-  }
-
-  if (fetchError) {
-    return <div className={styles.error}>Błąd ładowania profilu: {fetchError.message}</div>;
+    return <div className="text-center py-12 animate-pulse text-muted-foreground">Wczytywanie profilu...</div>;
   }
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.title}>Profile</h1>
+    <div className="bg-card p-8 rounded-lg border border-border shadow-sm max-w-2xl mx-auto">
+      <h2 className="font-heading text-3xl font-bold mb-8 text-foreground">Profil Kolarza</h2>
       
-      {mutation.isSuccess && (
-        <div className={styles.success}>Profil został zaktualizowany!</div>
-      )}
-      
-      {validationError && (
-        <div className={styles.error}>Błąd walidacji: {validationError}</div>
-      )}
-
-      {mutation.isError && (
-        <div className={styles.error}>Błąd aktualizacji: {mutation.error.message}</div>
-      )}
-
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="ftp">FTP (W)</label>
-          <input
-            id="ftp"
-            name="ftp"
-            type="number"
-            className={styles.input}
-            value={formData.ftp ?? ''}
-            onChange={handleChange}
-            required
-          />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">FTP (Waty)</label>
+            <input 
+              type="number" 
+              name="ftp_watts"
+              value={formData.ftp_watts}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              required 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Waga (kg)</label>
+            <input 
+              type="number" 
+              name="weight_kg"
+              step="0.1"
+              value={formData.weight_kg}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              required 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Tętno Maksymalne (BPM)</label>
+            <input 
+              type="number" 
+              name="hr_max"
+              value={formData.hr_max}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              required 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Tętno Progowe (BPM)</label>
+            <input 
+              type="number" 
+              name="hr_threshold"
+              value={formData.hr_threshold}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              required 
+            />
+          </div>
         </div>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="weight">Waga (kg)</label>
-          <input
-            id="weight"
-            name="weight"
-            type="number"
-            className={styles.input}
-            value={formData.weight ?? ''}
-            onChange={handleChange}
-            required
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Poziom zaawansowania</label>
+            <select 
+              name="experience_level"
+              value={formData.experience_level}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="beginner">Początkujący</option>
+              <option value="intermediate">Średniozaawansowany</option>
+              <option value="advanced">Zaawansowany</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Środowisko</label>
+            <select 
+              name="indoor_vs_outdoor_preference"
+              value={formData.indoor_vs_outdoor_preference}
+              onChange={handleChange}
+              className="w-full bg-background border border-border rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="indoor">Głównie Trenażer (Indoor)</option>
+              <option value="outdoor">Głównie Szosa (Outdoor)</option>
+              <option value="mixed">Mieszane</option>
+            </select>
+          </div>
         </div>
 
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="hr_max">HR Max (bpm)</label>
-          <input
-            id="hr_max"
-            name="hr_max"
-            type="number"
-            className={styles.input}
-            value={formData.hr_max ?? ''}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="hr_threshold">Próg HR (bpm)</label>
-          <input
-            id="hr_threshold"
-            name="hr_threshold"
-            type="number"
-            className={styles.input}
-            value={formData.hr_threshold ?? ''}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="experience_level">Poziom doświadczenia</label>
-          <select
-            id="experience_level"
-            name="experience_level"
-            className={styles.input}
-            value={formData.experience_level ?? ''}
-            onChange={handleChange}
-            required
+        <div className="pt-4">
+          <button 
+            type="submit" 
+            disabled={mutation.isPending}
+            className="w-full md:w-auto px-8 py-3 bg-z5 hover:bg-z5/90 text-white font-bold rounded-md transition-colors disabled:opacity-50 uppercase tracking-wider"
           >
-            <option value="" disabled>Wybierz poziom</option>
-            <option value="beginner">Początkujący</option>
-            <option value="intermediate">Średniozaawansowany</option>
-            <option value="advanced">Zaawansowany</option>
-            <option value="pro">Pro</option>
-          </select>
+            {mutation.isPending ? 'Zapisywanie...' : 'Zapisz Profil'}
+          </button>
         </div>
-
-        <div className={styles.formGroup}>
-          <label className={styles.label} htmlFor="weekly_hours">Tygodniowe godziny treningu</label>
-          <input
-            id="weekly_hours"
-            name="weekly_hours"
-            type="number"
-            className={styles.input}
-            value={formData.weekly_hours ?? ''}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <button 
-          type="submit" 
-          className={styles.button}
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? 'Zapisywanie...' : 'Zapisz profil'}
-        </button>
       </form>
     </div>
   );
-};
-
-export default ProfilePage;
+}
