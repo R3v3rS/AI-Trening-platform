@@ -37,8 +37,10 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  // W prawdziwej aplikacji użylibyśmy najnowszego elementu z tablicy metrics
-  const latestMetric = metrics && metrics.length > 0 ? metrics[0] : null;
+  // Wyszukaj najnowszy element z tablicy metrics
+  const latestMetric = metrics && metrics.length > 0 
+    ? [...metrics].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] 
+    : null;
 
   return (
     <div className={styles.container}>

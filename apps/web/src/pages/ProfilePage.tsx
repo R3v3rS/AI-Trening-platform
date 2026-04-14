@@ -6,13 +6,13 @@ import styles from './ProfilePage.module.css';
 
 const ProfilePage: React.FC = () => {
   const queryClient = useQueryClient();
-  const [formData, setFormData] = useState<Partial<Profile>>({
-    ftp: 0,
-    weight: 0,
-    hr_max: 0,
-    hr_threshold: 0,
+  const [formData, setFormData] = useState<Record<string, string | number>>({
+    ftp: '',
+    weight: '',
+    hr_max: '',
+    hr_threshold: '',
     experience_level: '',
-    weekly_hours: 0,
+    weekly_hours: '',
   });
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -39,7 +39,7 @@ const ProfilePage: React.FC = () => {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'number' ? Number(value) : value,
+      [name]: type === 'number' ? (value === '' ? '' : Number(value)) : value,
     }));
     setValidationError(null);
   };
@@ -88,7 +88,7 @@ const ProfilePage: React.FC = () => {
             name="ftp"
             type="number"
             className={styles.input}
-            value={formData.ftp || 0}
+            value={formData.ftp ?? ''}
             onChange={handleChange}
             required
           />
@@ -101,7 +101,7 @@ const ProfilePage: React.FC = () => {
             name="weight"
             type="number"
             className={styles.input}
-            value={formData.weight || 0}
+            value={formData.weight ?? ''}
             onChange={handleChange}
             required
           />
@@ -114,7 +114,7 @@ const ProfilePage: React.FC = () => {
             name="hr_max"
             type="number"
             className={styles.input}
-            value={formData.hr_max || 0}
+            value={formData.hr_max ?? ''}
             onChange={handleChange}
             required
           />
@@ -127,7 +127,7 @@ const ProfilePage: React.FC = () => {
             name="hr_threshold"
             type="number"
             className={styles.input}
-            value={formData.hr_threshold || 0}
+            value={formData.hr_threshold ?? ''}
             onChange={handleChange}
             required
           />
@@ -139,7 +139,7 @@ const ProfilePage: React.FC = () => {
             id="experience_level"
             name="experience_level"
             className={styles.input}
-            value={formData.experience_level || ''}
+            value={formData.experience_level ?? ''}
             onChange={handleChange}
             required
           >
@@ -158,7 +158,7 @@ const ProfilePage: React.FC = () => {
             name="weekly_hours"
             type="number"
             className={styles.input}
-            value={formData.weekly_hours || 0}
+            value={formData.weekly_hours ?? ''}
             onChange={handleChange}
             required
           />

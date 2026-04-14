@@ -55,8 +55,20 @@ export const handlers = [
     const from = url.searchParams.get('from');
     const to = url.searchParams.get('to');
     
-    // Uproszczone filtrowanie
-    return HttpResponse.json(workouts.slice(0, 15)); 
+    let filteredWorkouts = workouts;
+
+    if (from) {
+      const fromDate = new Date(from).getTime();
+      filteredWorkouts = filteredWorkouts.filter(w => new Date(w.date).getTime() >= fromDate);
+    }
+    
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      filteredWorkouts = filteredWorkouts.filter(w => new Date(w.date).getTime() <= toDate.getTime());
+    }
+
+    return HttpResponse.json(filteredWorkouts); 
   }),
 
   // Workouts (paginated)

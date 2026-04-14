@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getCalendar } from '../lib/api/calendar';
 import { WorkoutStatus } from '../types';
+import { formatDate, getCurrentMonthRange } from '../utils/dateFormatter';
 import styles from './CalendarPage.module.css';
 
 const CalendarPage: React.FC = () => {
-  const from = '2023-10-01'; // Przykładowe daty (zwykle użyłoby się np. date-fns)
-  const to = '2023-10-31';
+  const { from, to } = useMemo(() => getCurrentMonthRange(), []);
 
   const {
     data: workouts,
@@ -46,7 +46,7 @@ const CalendarPage: React.FC = () => {
           workouts.map((workout) => (
             <div key={workout.id} className={styles.workoutItem}>
               <div className={styles.workoutDetails}>
-                <span className={styles.workoutDate}>{new Date(workout.date).toLocaleDateString()}</span>
+                <span className={styles.workoutDate}>{formatDate(workout.date)}</span>
                 <span className={styles.workoutTitle}>{workout.title || workout.type}</span>
                 <div className={styles.workoutMeta}>
                   <span>{workout.duration} min</span>

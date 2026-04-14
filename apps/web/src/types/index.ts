@@ -15,12 +15,12 @@ export enum WorkoutStatus {
 }
 
 export const ProfileSchema = z.object({
-  ftp: z.number().min(0, "FTP musi być większe od 0"),
-  weight: z.number().min(0, "Waga musi być większa od 0"),
-  hr_max: z.number().min(0, "HR Max musi być większe od 0"),
-  hr_threshold: z.number().min(0, "Próg HR musi być większy od 0"),
+  ftp: z.coerce.number().positive("FTP musi być większe od 0"),
+  weight: z.coerce.number().positive("Waga musi być większa od 0"),
+  hr_max: z.coerce.number().positive("HR Max musi być większe od 0"),
+  hr_threshold: z.coerce.number().positive("Próg HR musi być większy od 0"),
   experience_level: z.string().min(1, "Wybierz poziom doświadczenia"),
-  weekly_hours: z.number().min(0, "Tygodniowe godziny muszą być nieujemne"),
+  weekly_hours: z.coerce.number().min(0, "Tygodniowe godziny muszą być nieujemne"),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;

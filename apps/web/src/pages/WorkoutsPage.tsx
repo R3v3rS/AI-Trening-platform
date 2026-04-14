@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getWorkouts } from '../lib/api/workouts';
 import { WorkoutType, WorkoutStatus, GetWorkoutsParams } from '../types';
+import { formatDate } from '../utils/dateFormatter';
 import styles from './WorkoutsPage.module.css';
 
 const WorkoutsPage: React.FC = () => {
@@ -106,7 +107,7 @@ const WorkoutsPage: React.FC = () => {
             {paginatedData?.data.map((workout) => (
               <div key={workout.id} className={styles.workoutItem}>
                 <div className={styles.workoutDetails}>
-                  <span className={styles.workoutDate}>{new Date(workout.date).toLocaleDateString()}</span>
+                  <span className={styles.workoutDate}>{formatDate(workout.date)}</span>
                   <span className={styles.workoutTitle}>{workout.title || workout.type}</span>
                   <div className={styles.workoutMeta}>
                     <span>{workout.duration} min</span>

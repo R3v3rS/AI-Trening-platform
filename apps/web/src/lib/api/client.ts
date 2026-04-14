@@ -10,7 +10,7 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.message || error.message || 'Wystąpił nieznany błąd API';
+    const message = error.response?.data?.message || error.message || 'An unknown API error occurred';
     return Promise.reject(new Error(message));
   }
 );

@@ -41,6 +41,8 @@ const FtpTestPage: React.FC = () => {
     setTestResult(null);
     setAccepted(false);
     setAvgPower(0);
+    calculateMutation.reset();
+    acceptMutation.reset();
   };
 
   return (

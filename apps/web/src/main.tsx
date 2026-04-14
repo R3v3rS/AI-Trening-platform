@@ -36,4 +36,6 @@ enableMocking().then(() => {
       </QueryClientProvider>
     </React.StrictMode>
   );
+}).catch((error) => {
+  console.error('Failed to initialize mocking:', error);
 });
