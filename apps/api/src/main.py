@@ -12,6 +12,8 @@ def create_app():
 
     init_db()
     register_blueprints(app)
+    from api.v1.templates import templates_bp
+    app.register_blueprint(templates_bp)
 
     @app.errorhandler(404)
     def not_found(e):

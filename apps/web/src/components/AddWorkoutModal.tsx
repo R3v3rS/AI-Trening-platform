@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { PlusCircle, Trash2, GripVertical } from 'lucide-react';
+import { PlusCircle, Trash2, GripVertical, Save } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 export type Block = {
   id: string;
@@ -23,6 +24,52 @@ export function AddWorkoutModal({ date, isOpen, onOpenChange }: { date: string, 
   const [type, setType] = useState('z2');
   const [notes, setNotes] = useState('');
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [showTemplateNameInput, setShowTemplateNameInput] = useState(false);
+
+  const { data: templates } = useQuery({
+    queryKey: ['templates'],
+    queryFn: async () => {
+      const res = await api.get('/templates');
+      return res.data;
+    }
+  });
+
+  const loadTemplate = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    if (!id) return;
+    const t = templates?.find((x: any) => x.id.toString() === id);
+    if (t) {
+      setType(t.type || 'z2');
+      setNotes(t.description || '');
+      if (t.structured_steps) {
+        try {
+          setBlocks(JSON.parse(t.structured_steps));
+        } catch (e) {
+          setBlocks([]);
+        }
+      } else {
+        setBlocks([]);
+      }
+    }
+  };
+
+  const saveTemplateMutation = useMutation({
+    mutationFn: async () => {
+      await api.post('/templates', {
+        name: templateName,
+        description: notes,
+        type: type,
+        structured_steps: blocks.length > 0 ? JSON.stringify(blocks) : null
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+      setShowTemplateNameInput(false);
+      setTemplateName('');
+      alert('Zapisano jako nowy szablon!');
+    }
+  });
 
   const addBlock = (blockType: Block['type']) => {
     const newBlock: Block = {
@@ -65,6 +112,14 @@ export function AddWorkoutModal({ date, isOpen, onOpenChange }: { date: string, 
     return acc + (b.duration || 0);
   }, 0);
 
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+    const items = Array.from(blocks);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+    setBlocks(items);
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -103,6 +158,21 @@ export function AddWorkoutModal({ date, isOpen, onOpenChange }: { date: string, 
           </Dialog.Title>
           
           <form onSubmit={handleSubmit} className="space-y-6 mt-2">
+            {templates && templates.length > 0 && (
+              <div className="bg-z5/10 border border-z5/20 p-3 rounded-lg flex items-center justify-between">
+                <span className="text-sm font-medium text-z5">Zastosuj Szablon:</span>
+                <select 
+                  onChange={loadTemplate}
+                  className="bg-background border border-border rounded px-2 py-1 text-sm max-w-[200px]"
+                >
+                  <option value="">-- Wybierz --</option>
+                  {templates.map((t: any) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Kategoria główna</label>
@@ -147,67 +217,123 @@ export function AddWorkoutModal({ date, isOpen, onOpenChange }: { date: string, 
                   Kliknij przyciski powyżej, aby dodać kroki treningu. Jeśli zostawisz to pole puste, zostanie wygenerowany prosty blok na podstawie kategorii.
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {blocks.map((block, index) => (
-                    <div key={block.id} className="flex gap-3 items-start bg-muted/30 p-3 rounded-lg border border-border/50">
-                      <div className="mt-2 text-muted-foreground"><GripVertical className="w-4 h-4" /></div>
-                      
-                      <div className="flex-1 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold uppercase tracking-wider text-z5">{block.type}</span>
-                          <button type="button" onClick={() => removeBlock(block.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                        
-                        {block.type === 'warmup' || block.type === 'cooldown' ? (
-                          <div className="flex gap-2 text-sm">
-                            <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.duration / 60} onChange={e => updateBlock(block.id, { duration: Number(e.target.value) * 60 })} /> min</label>
-                            <label className="flex items-center gap-1">Od: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power_start} onChange={e => updateBlock(block.id, { power_start: Number(e.target.value) })} /> W</label>
-                            <label className="flex items-center gap-1">Do: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power_end} onChange={e => updateBlock(block.id, { power_end: Number(e.target.value) })} /> W</label>
-                          </div>
-                        ) : block.type === 'steady' ? (
-                          <div className="flex gap-2 text-sm">
-                            <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.duration / 60} onChange={e => updateBlock(block.id, { duration: Number(e.target.value) * 60 })} /> min</label>
-                            <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power} onChange={e => updateBlock(block.id, { power: Number(e.target.value) })} /> W</label>
-                          </div>
-                        ) : block.type === 'interval' ? (
-                          <div className="space-y-2 text-sm">
-                            <div className="flex gap-2">
-                              <label className="flex items-center gap-1">Powtórzenia: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.repeat} onChange={e => updateBlock(block.id, { repeat: Number(e.target.value) })} /> x</label>
-                            </div>
-                            <div className="flex gap-2">
-                              <label className="flex items-center gap-1 text-z5 font-medium">Praca:</label>
-                              <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={(block.on_duration || 0) / 60} onChange={e => updateBlock(block.id, { on_duration: Number(e.target.value) * 60 })} /> min</label>
-                              <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.on_power} onChange={e => updateBlock(block.id, { on_power: Number(e.target.value) })} /> W</label>
-                            </div>
-                            <div className="flex gap-2">
-                              <label className="flex items-center gap-1 text-z2 font-medium">Odpoczynek:</label>
-                              <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={(block.off_duration || 0) / 60} onChange={e => updateBlock(block.id, { off_duration: Number(e.target.value) * 60 })} /> min</label>
-                              <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.off_power} onChange={e => updateBlock(block.id, { off_power: Number(e.target.value) })} /> W</label>
-                            </div>
-                          </div>
-                        ) : null}
+                <DragDropContext onDragEnd={onDragEnd}>
+                  <Droppable droppableId="workout-blocks">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-3">
+                        {blocks.map((block, index) => (
+                          <Draggable key={block.id} draggableId={block.id} index={index}>
+                            {(provided) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className="flex gap-3 items-start bg-muted/30 p-3 rounded-lg border border-border/50 shadow-sm"
+                              >
+                                <div {...provided.dragHandleProps} className="mt-2 text-muted-foreground cursor-grab active:cursor-grabbing">
+                                  <GripVertical className="w-4 h-4" />
+                                </div>
+                                
+                                <div className="flex-1 space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-z5">{block.type}</span>
+                                    <button type="button" onClick={() => removeBlock(block.id)} className="text-destructive hover:text-destructive/80"><Trash2 className="w-4 h-4" /></button>
+                                  </div>
+                                  
+                                  {block.type === 'warmup' || block.type === 'cooldown' ? (
+                                    <div className="flex flex-wrap gap-2 text-sm">
+                                      <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.duration / 60} onChange={e => updateBlock(block.id, { duration: Number(e.target.value) * 60 })} /> min</label>
+                                      <label className="flex items-center gap-1">Od: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power_start} onChange={e => updateBlock(block.id, { power_start: Number(e.target.value) })} /> W</label>
+                                      <label className="flex items-center gap-1">Do: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power_end} onChange={e => updateBlock(block.id, { power_end: Number(e.target.value) })} /> W</label>
+                                    </div>
+                                  ) : block.type === 'steady' ? (
+                                    <div className="flex flex-wrap gap-2 text-sm">
+                                      <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.duration / 60} onChange={e => updateBlock(block.id, { duration: Number(e.target.value) * 60 })} /> min</label>
+                                      <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.power} onChange={e => updateBlock(block.id, { power: Number(e.target.value) })} /> W</label>
+                                    </div>
+                                  ) : block.type === 'interval' ? (
+                                    <div className="space-y-2 text-sm">
+                                      <div className="flex flex-wrap gap-2">
+                                        <label className="flex items-center gap-1">Powtórzenia: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.repeat} onChange={e => updateBlock(block.id, { repeat: Number(e.target.value) })} /> x</label>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2 items-center">
+                                        <label className="flex items-center gap-1 text-z5 font-medium">Praca:</label>
+                                        <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={(block.on_duration || 0) / 60} onChange={e => updateBlock(block.id, { on_duration: Number(e.target.value) * 60 })} /> min</label>
+                                        <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.on_power} onChange={e => updateBlock(block.id, { on_power: Number(e.target.value) })} /> W</label>
+                                      </div>
+                                      <div className="flex flex-wrap gap-2 items-center">
+                                        <label className="flex items-center gap-1 text-z2 font-medium">Odpoczynek:</label>
+                                        <label className="flex items-center gap-1">Czas: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={(block.off_duration || 0) / 60} onChange={e => updateBlock(block.id, { off_duration: Number(e.target.value) * 60 })} /> min</label>
+                                        <label className="flex items-center gap-1">Moc: <input type="number" className="w-16 bg-background border border-border rounded px-1" value={block.off_power} onChange={e => updateBlock(block.id, { off_power: Number(e.target.value) })} /> W</label>
+                                      </div>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-border">
-              <button 
-                type="button" 
-                onClick={() => onOpenChange(false)}
-                className="px-4 py-2 border border-border rounded hover:bg-muted transition-colors"
-              >
-                Anuluj
-              </button>
-              <button 
-                type="submit"
-                disabled={mutation.isPending}
-                className="px-4 py-2 bg-z5 hover:bg-z5/90 text-white rounded font-medium disabled:opacity-50"
-              >
-                {mutation.isPending ? 'Zapisywanie...' : 'Zapisz Plan'}
-              </button>
+            <div className="flex justify-between items-center pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                {!showTemplateNameInput ? (
+                  <button 
+                    type="button"
+                    onClick={() => setShowTemplateNameInput(true)}
+                    className="flex items-center gap-1 text-sm text-z5 hover:underline"
+                  >
+                    <Save className="w-4 h-4" /> Zapisz jako szablon
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      value={templateName}
+                      onChange={e => setTemplateName(e.target.value)}
+                      placeholder="Nazwa szablonu..."
+                      className="bg-background border border-border rounded px-2 py-1 text-sm"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => saveTemplateMutation.mutate()}
+                      disabled={!templateName || saveTemplateMutation.isPending}
+                      className="px-3 py-1 bg-z3 hover:bg-z3/90 text-white rounded text-sm disabled:opacity-50"
+                    >
+                      Zapisz
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setShowTemplateNameInput(false)}
+                      className="text-sm text-muted-foreground hover:underline"
+                    >
+                      Anuluj
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => onOpenChange(false)}
+                  className="px-4 py-2 border border-border rounded hover:bg-muted transition-colors"
+                >
+                  Anuluj
+                </button>
+                <button 
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="px-4 py-2 bg-z5 hover:bg-z5/90 text-white rounded font-medium disabled:opacity-50"
+                >
+                  {mutation.isPending ? 'Zapisywanie...' : 'Zapisz Plan'}
+                </button>
+              </div>
             </div>
           </form>
         </Dialog.Content>
