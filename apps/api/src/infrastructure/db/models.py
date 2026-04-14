@@ -102,6 +102,7 @@ class PlannedWorkout(Base):
     status: Mapped[str] = mapped_column(String(50), nullable=False, default="planned")
     moved_from_date: Mapped[date] = mapped_column(Date, nullable=True)
     notes: Mapped[str] = mapped_column(Text, nullable=True)
+    structured_steps: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )
@@ -130,6 +131,18 @@ class DailyLoadMetric(Base):
     atl_7d: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     ctl_42d: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     tsb: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+
+class WorkoutTemplate(Base):
+    __tablename__ = "workout_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    type: Mapped[str] = mapped_column(String(50), nullable=True)
+    structured_steps: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow
     )

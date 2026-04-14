@@ -99,8 +99,92 @@ def create_planned_workout():
             "duration_sec": req.duration_sec,
             "target_zone": req.target_zone,
             "notes": req.notes,
+            "structured_steps": req.structured_steps,
         })
         return jsonify(planned_workout_to_dict(pw)), 201
+    finally:
+        db.close()
+
+@calendar_bp.route("/planned-workouts/<int:workout_id>/export/zwo", methods=["GET"])
+def export_zwo(workout_id: int):
+    """
+    Generuje plik ZWO z zaplanowanego treningu na podstawie structured_steps.
+    Jeśli structured_steps nie istnieje, tworzy płaski blok dla zadanego typu treningu.
+    """
+    import json
+    from infrastructure.repositories.profile_repository import ProfileRepository
+    db = SessionLocal()
+    try:
+        repo = PlannedWorkoutRepository(db)
+        pw = repo.get_by_id(workout_id)
+        if not pw:
+            return jsonify({"error": "not_found"}), 404
+            
+        profile_repo = ProfileRepository(db)
+        profile = profile_repo.get_profile()
+        ftp = profile.ftp_watts if profile and profile.ftp_watts else 200
+        
+        duration_sec = pw.duration_sec or 3600
+        workout_tags = ""
+        
+        if pw.structured_steps:
+            try:
+                steps = json.loads(pw.structured_steps)
+                for step in steps:
+                    step_type = step.get("type")
+                    if step_type == "warmup":
+                        dur = step.get("duration", 300)
+                        p_start = step.get("power_start", ftp * 0.4) / ftp
+                        p_end = step.get("power_end", ftp * 0.7) / ftp
+                        workout_tags += f'    <Warmup Duration="{dur}" PowerLow="{p_start:.2f}" PowerHigh="{p_end:.2f}"/>\n'
+                    elif step_type == "cooldown":
+                        dur = step.get("duration", 300)
+                        p_start = step.get("power_start", ftp * 0.7) / ftp
+                        p_end = step.get("power_end", ftp * 0.4) / ftp
+                        workout_tags += f'    <Cooldown Duration="{dur}" PowerLow="{p_start:.2f}" PowerHigh="{p_end:.2f}"/>\n'
+                    elif step_type == "interval":
+                        repeat = step.get("repeat", 1)
+                        on_dur = step.get("on_duration", 60)
+                        off_dur = step.get("off_duration", 60)
+                        on_pow = step.get("on_power", ftp) / ftp
+                        off_pow = step.get("off_power", ftp * 0.5) / ftp
+                        workout_tags += f'    <IntervalsT Repeat="{repeat}" OnDuration="{on_dur}" OffDuration="{off_dur}" OnPower="{on_pow:.2f}" OffPower="{off_pow:.2f}"/>\n'
+                    else: # steady
+                        dur = step.get("duration", 300)
+                        p = step.get("power", ftp * 0.65) / ftp
+                        workout_tags += f'    <SteadyState Duration="{dur}" Power="{p:.2f}"/>\n'
+            except Exception as e:
+                # W przypadku błędu parsowania JSON-a
+                workout_tags = f'    <SteadyState Duration="{duration_sec}" Power="0.75"/>\n'
+        else:
+            # Proste przypisanie % FTP do zdefiniowanych typów treningu (stary sposób)
+            power_zones = {
+                "recovery": 0.50,
+                "z2": 0.65,
+                "tempo": 0.80,
+                "long_ride": 0.65,
+                "vo2max": 1.10,
+                "ftp_test": 1.00
+            }
+            power_fraction = power_zones.get(pw.type, 0.70)
+            workout_tags = f'    <SteadyState Duration="{duration_sec}" Power="{power_fraction}"/>\n'
+        
+        # Generowanie formatu XML/ZWO
+        zwo_content = f"""<?xml version="1.0" encoding="UTF-8" ?>
+<workout_file>
+  <author>Treningowy Asystent Kolarza</author>
+  <name>{(pw.type or 'Trening').upper()} na dzień {pw.planned_date}</name>
+  <description>{pw.notes or "Wygenerowano automatycznie"}</description>
+  <sportType>bike</sportType>
+  <workout>
+{workout_tags.rstrip()}
+  </workout>
+</workout_file>
+"""
+        from flask import Response
+        response = Response(zwo_content, mimetype="application/xml")
+        response.headers["Content-Disposition"] = f"attachment; filename=workout_{pw.planned_date}.zwo"
+        return response
     finally:
         db.close()
 

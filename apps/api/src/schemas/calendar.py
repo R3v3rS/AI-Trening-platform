@@ -16,6 +16,7 @@ class PlannedWorkoutCreateRequest:
     duration_sec: Optional[int] = None
     target_zone: Optional[str] = None
     notes: Optional[str] = None
+    structured_steps: Optional[str] = None
 
     def validate(self) -> dict[str, str]:
         errors = {}
@@ -43,6 +44,7 @@ class PlannedWorkoutCreateRequest:
             duration_sec=data.get("duration_sec"),
             target_zone=data.get("target_zone"),
             notes=data.get("notes"),
+            structured_steps=data.get("structured_steps"),
         )
 
 
