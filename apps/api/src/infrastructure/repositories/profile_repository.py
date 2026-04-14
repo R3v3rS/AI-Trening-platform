@@ -27,7 +27,16 @@ class ProfileRepository:
             )
 
         if profile is None:
-            profile = AthleteProfile(id=1, **data)
+            profile = AthleteProfile(
+                id=1,
+                ftp_watts=data.get("ftp_watts", 200),
+                weight_kg=data.get("weight_kg", 75.0),
+                hr_max=data.get("hr_max", 190),
+                hr_threshold=data.get("hr_threshold", 170),
+            )
+            for k, v in data.items():
+                if k not in ["id", "ftp_watts", "weight_kg", "hr_max", "hr_threshold"] and hasattr(profile, k):
+                    setattr(profile, k, v)
             self.db.add(profile)
         else:
             for key, value in data.items():

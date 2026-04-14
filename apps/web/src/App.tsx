@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { Activity, Calendar, User, Upload } from 'lucide-react';
+import { Activity, Calendar, User, Upload, LineChart } from 'lucide-react';
 import CalendarPage from './pages/CalendarPage';
 import WorkoutsPage from './pages/WorkoutsPage';
 import ProfilePage from './pages/ProfilePage';
 import ImportPage from './pages/ImportPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,9 @@ function App() {
                 <Link to="/workouts" className="flex items-center gap-2 text-sm font-medium hover:text-z5 transition-colors">
                   <Activity className="w-4 h-4" /> Treningi
                 </Link>
+                <Link to="/analytics" className="flex items-center gap-2 text-sm font-medium hover:text-z5 transition-colors">
+                  <LineChart className="w-4 h-4" /> Analityka
+                </Link>
                 <Link to="/import" className="flex items-center gap-2 text-sm font-medium hover:text-z5 transition-colors">
                   <Upload className="w-4 h-4" /> Import
                 </Link>
@@ -40,6 +44,7 @@ function App() {
             <Routes>
               <Route path="/" element={<CalendarPage />} />
               <Route path="/workouts" element={<WorkoutsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/import" element={<ImportPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Routes>
